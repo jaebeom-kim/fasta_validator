@@ -43,5 +43,9 @@
  */
 int contains_non_word_characters(char *seq, int verbose);
 
+int validate_fasta_core(const char *filename, int verbose);
+
+int validate_fasta_file(const char *filename, int verbose);
+
 
 #endif /* FASTA_H */

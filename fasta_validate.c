@@ -89,79 +89,77 @@ int main(int argc, char *argv[]) {
 		filename = argv[2];
 	}
 
-	// create a hash with 1,000,000 possible entries
-	int hc = hcreate(NUMSEQS);
-	if (hc == 0) {
-		fprintf(stderr, "Unable to create the hash table\n");
-		return -1;
-	}
-
-	FILE * fp;
-
-	char line[MAXLINELEN];
-
-	if ((fp = fopen(filename, "r")) == NULL) {
-		if (verbose)
-			fprintf(stderr, "Can't open file %s\n", argv[1]);
-		exit(1);
-	}
-
-	int firstline = 1;
-	int seqcount = 0;
-	while ((fgets(line, MAXLINELEN, fp)) != NULL) {
-		if ((int) line[0] == 62) { // not sure why I'm using an ascii comparison, but I'm thinking ascii at the moment
-			if (!firstline && seqcount == 0) {
-				if (verbose) 
-					fprintf(stderr, "ERROR: We have an empty sequence\n");
-				return 8;
-			}
-			firstline = 0;
-			seqcount = 0;
-			// remove anything after the first space
-			char *p = strchr(line, ' ');
-			if (p)
-				*p = '\0';
-
-			// in case you need this!
-			// fprintf(stderr, "Parsing %s\n", line);
-
-			// check to see if we have seen this line
-			// if not, add it to the hash
-			ENTRY item;
-			item.key = strdup(line);
-			ENTRY *found_item;
-			if ((found_item = hsearch(item, FIND)) != NULL) {
-				if (verbose) {
-					fprintf(stderr, "ERROR: Found a duplicate id: |%s|\n", line);
-					fprintf(stderr, "ERROR: Found a duplicate id: |%s|\n", found_item->key);
-				}
-				return 2;
-			}
-
-			// fprintf(stderr, "adding |%s|\n", item.key);
-			(void) hsearch(item, ENTER);
-		} else {
-			if (firstline > 0) {
-				if (verbose)
-					fprintf(stderr, "ERROR: The first line should start with a >\n");
-				return 1; // the first line should start with a >
-			}
-			int nwc = contains_non_word_characters(line, verbose);
-			if (nwc > 0) {
-				if (verbose) 
-					fprintf(stderr, "ERROR: We have a non word character!\n");
-				return 4;
-			}
-			seqcount += strlen(line);
-		}
-	}
-
-	if (seqcount == 0) {
-		if (verbose) 
-			fprintf(stderr, "ERROR: at tend We have an empty sequence\n");
-		return 8;
-	}
-	return 0;
+	return validate_fasta_core(filename, verbose);
 }
 
 
+int validate_fasta_file(const char *filename, int verbose) {
+    return validate_fasta_core(filename, verbose);
+}
+
+
+int validate_fasta_core(const char *filename, int verbose) {
+    FILE *fp;
+    char line[MAXLINELEN];
+    int firstline = 1;
+    int seqcount = 0;
+
+    int hc = hcreate(NUMSEQS);
+    if (hc == 0) {
+        fprintf(stderr, "Unable to create the hash table\n");
+        return -1;
+    }
+
+    if ((fp = fopen(filename, "r")) == NULL) {
+        if (verbose)
+            fprintf(stderr, "Can't open file %s\n", filename);
+        return 1;
+    }
+
+    while ((fgets(line, MAXLINELEN, fp)) != NULL) {
+        if (line[0] == '>') {
+            if (!firstline && seqcount == 0) {
+                if (verbose)
+                    fprintf(stderr, "ERROR: We have an empty sequence\n");
+                return 8;
+            }
+            firstline = 0;
+            seqcount = 0;
+
+            char *p = strchr(line, ' ');
+            if (p) *p = '\0';
+
+            ENTRY item;
+            item.key = strdup(line);
+            ENTRY *found_item;
+            if ((found_item = hsearch(item, FIND)) != NULL) {
+                if (verbose) {
+                    fprintf(stderr, "ERROR: Found a duplicate id: |%s|\n", line);
+                    fprintf(stderr, "ERROR: Found a duplicate id: |%s|\n", found_item->key);
+                }
+                return 2;
+            }
+            (void) hsearch(item, ENTER);
+        } else {
+            if (firstline > 0) {
+                if (verbose)
+                    fprintf(stderr, "ERROR: The first line should start with a >\n");
+                return 1;
+            }
+            if (contains_non_word_characters(line, verbose)) {
+                if (verbose)
+                    fprintf(stderr, "ERROR: We have a non word character!\n");
+                return 4;
+            }
+            seqcount += strlen(line);
+        }
+    }
+
+    if (seqcount == 0) {
+        if (verbose)
+            fprintf(stderr, "ERROR: At end: We have an empty sequence\n");
+        return 8;
+    }
+
+    return 0;
+}
