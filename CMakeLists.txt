@@ -1,5 +1,5 @@
 add_library(fasta_validator
-        fasta_validate.c
+        fasta_validate.cpp
         fasta_validate.h
 )
 

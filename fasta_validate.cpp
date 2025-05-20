@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <search.h>
+#include <zlib.h>
 
 #include "fasta_validate.h"
 
@@ -64,7 +65,7 @@ void help(char *nm) {
 }
 
 
-int main(int argc, char *argv[]) {
+int fasta_validator_main(int argc, char *argv[]) {
 	if (argc < 2) {
 		printf("%s [-h] [-v] [-V] [fasta file]\n", argv[0]);
 		exit(1);
@@ -94,6 +95,9 @@ int main(int argc, char *argv[]) {
 
 
 int validate_fasta_file(const char *filename, int verbose) {
+	if (strlen(filename) >= 3 && strcmp(filename + strlen(filename) - 3, ".gz") == 0) {
+    	return validate_fasta_core_gzip(filename, verbose);
+	}
     return validate_fasta_core(filename, verbose);
 }
 
@@ -160,6 +164,85 @@ int validate_fasta_core(const char *filename, int verbose) {
             fprintf(stderr, "ERROR: At end: We have an empty sequence\n");
         return 8;
     }
+
+    if (fp != NULL) {
+        fclose(fp);
+    }
+
+    hdestroy();
+    return 0;
+}
+
+int validate_fasta_core_gzip(const char *filename, int verbose) {
+    gzFile fp;
+    char line[MAXLINELEN];
+    int firstline = 1;
+    int seqcount = 0;
+
+    if (hcreate(NUMSEQS) == 0) {
+        fprintf(stderr, "Unable to create the hash table\n");
+        return -1;
+    }
+
+    fp = gzopen(filename, "rb");
+    if (fp == NULL) {
+        if (verbose)
+            fprintf(stderr, "Can't open file %s\n", filename);
+        return 1;
+    }
+
+    while (gzgets(fp, line, MAXLINELEN) != NULL) {
+        if (line[0] == '>') {
+            if (!firstline && seqcount == 0) {
+                if (verbose)
+                    fprintf(stderr, "ERROR: We have an empty sequence\n");
+                gzclose(fp);
+                return 8;
+            }
+            firstline = 0;
+            seqcount = 0;
+
+            char *p = strchr(line, ' ');
+            if (p) *p = '\0';
+
+            ENTRY item;
+            item.key = strdup(line);  // must be strdup for hsearch
+            ENTRY *found_item;
+            if ((found_item = hsearch(item, FIND)) != NULL) {
+                if (verbose) {
+                    fprintf(stderr, "ERROR: Found a duplicate id: |%s|\n", line);
+                    fprintf(stderr, "ERROR: Found a duplicate id: |%s|\n", found_item->key);
+                }
+                gzclose(fp);
+                return 2;
+            }
+            (void) hsearch(item, ENTER);
+        } else {
+            if (firstline > 0) {
+                if (verbose)
+                    fprintf(stderr, "ERROR: The first line should start with a >\n");
+                gzclose(fp);
+                return 1;
+            }
+            if (contains_non_word_characters(line, verbose)) {
+                if (verbose)
+                    fprintf(stderr, "ERROR: We have a non word character!\n");
+                gzclose(fp);
+                return 4;
+            }
+            seqcount += strlen(line);
+        }
+    }
+
+    gzclose(fp);
+    hdestroy();
+
+    if (seqcount == 0) {
+        if (verbose)
+            fprintf(stderr, "ERROR: At end: We have an empty sequence\n");
+        return 8;
+    }
+    
 
     return 0;
 }
