@@ -16,7 +16,7 @@
  * The current version of fasta_validate.
  */
 
-#define VERSION 20190909
+// #define VERSION 20190909
 
 /*
  * the maximum line length of the sequence that we'll read
