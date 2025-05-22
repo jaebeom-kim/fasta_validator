@@ -51,7 +51,7 @@ int contains_non_word_characters(char *seq, int verbose) {
 }
 
 void help(char *nm) {
-	printf("%s version %d\n\nCheck and validate a fasta file\n", nm, VERSION);
+	// printf("%s version %d\n\nCheck and validate a fasta file\n", nm, VERSION);
 	printf("Rob Edwards.\n\n");
 	printf("%s checks your fasta file and exits with:\n", nm);
 	printf("\t0: this is a valid fasta file\n");
@@ -79,10 +79,10 @@ int fasta_validator_main(int argc, char *argv[]) {
 		return 0;
 	}
 
-	if (strcmp(filename, "-V") == 0) {
-		printf("%s version %d.\nFor more information please see https://github.com/linsalrob/fasta_validator\n", argv[0], VERSION);
-		return 0;
-	}
+	// if (strcmp(filename, "-V") == 0) {
+	// 	printf("%s version %d.\nFor more information please see https://github.com/linsalrob/fasta_validator\n", argv[0], VERSION);
+	// 	return 0;
+	// }
 
 
 	if (strcmp(filename, "-v") == 0) {
